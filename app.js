@@ -4,6 +4,10 @@ const logger = require("morgan");
 const bodyParser = require("body-parser");
 const port = process.env.PORT || 5000;
 
+const { addUser, removeUser, getUser, getUserInRoom } = require("./users");
+
+
+
 // Import the routes
 const router = require("./router");
 
@@ -15,11 +19,23 @@ const server = http.createServer(app);
 const io = require("socket.io")(server);
 
 io.on("connection", (socket) => {
-    console.log("We have a new connection");
+    // To join room
+    socket.on("join", ({ name, room }, callback) => {
+        const { error, user } = addUser({ id: socket.id, name, room });
+        if (error) return callback(error);
 
-    socket.on("join", ({ name, room }) => {
-        console.log(name, room);
-    })
+        // Admin generated messages
+        socket.emit("message", { user: "admin", text: `${user.name}, welcome to the${user.room}`})
+        // Send a message to everyone but the sender
+        socket.broadcast.to(user.room).emit("message", { user: "admin", text: `${user.name} has joined!!`})
+
+        // For a user joining another room
+        socket.join(user.room);
+        callback();
+    });
+
+    // Events for user generated messages
+    socket.on("sendMessage", )
     
     socket.on("disconnect", () => {
         console.log("User had left");
